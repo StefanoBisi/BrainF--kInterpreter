@@ -1,7 +1,7 @@
 import System.Environment
 import System.IO (readFile)
 import Data.Char (ord, chr) -- Per la gestione I/O5
-import Data.Word
+import Data.Word ( Word8 )
 
 --
 data ProgramState = Run | WaitIn | WaitOut | End | Debug deriving (Show)
@@ -27,7 +27,7 @@ newProgram :: String -> Program
 newProgram newCode = Program {code = newCode,
                                 istPointer = 0,
                                 memPointer = 0,
-                                memory = take 10000 $ repeat 0,
+                                memory = replicate 10000 0,
                                 stack = [],
                                 state = Run}
 
@@ -39,7 +39,7 @@ newProgram newCode = Program {code = newCode,
 -- Inserisce un valore ad una carte posizione dell'array-memoria. (Sicuramente c'è già qualcosa di simile, devo trovarlo)
 insertInMemory :: [Word8] -> Int -> Word8 -> [Word8]
 insertInMemory [] _ _ = []
-insertInMemory lst pos val = (take pos lst) ++ [val] ++ (drop (succ pos) lst)
+insertInMemory lst pos val = take pos lst ++ [val] ++ drop (succ pos) lst
 
 -- Incrementa di uno istPointer e modifica il valore della memoria della cella puntata
 -- Il valore da aggiungere alla cella deve essere fornito
@@ -59,22 +59,22 @@ moveMemory action prog = prog {
     memPointer = action $ memPointer prog}
 
 findClose :: String -> Int -> Int -> Int
-findClose code pos count = case (code !! pos) of
+findClose code pos count = case code !! pos of
     '[' -> findClose code (succ pos) (succ count)
-    ']' -> if (count == 0)
+    ']' -> if count == 0
         then pos
         else findClose code (succ pos) (pred count)
-    otherwise -> findClose code (succ pos) count
+    _ -> findClose code (succ pos) count
 
 rollUp :: Word8 -> Word8
 rollUp val = case val of
     255 -> 0
-    otherwise -> succ val
+    _ -> succ val
 
 rollDown :: Word8 -> Word8
 rollDown val = case val of
     0 -> 255
-    otherwise -> pred val
+    _ -> pred val
 
 -- Incrementa di uno il valore della cella puntata e fa progredire istPointer
 execAdd :: Program -> Program
@@ -94,7 +94,7 @@ execLeft = moveMemory pred
 
 -- Aggiunge alla stack il puntatore all'istruzione corrente e poi lo fa progredire
 execOpen :: Program -> Program
-execOpen prog = if ((memory prog) !! (memPointer prog)) == 0
+execOpen prog = if (memory prog !! memPointer prog) == 0
     then prog { istPointer = succ $ findClose (code prog) (succ $ istPointer prog) 0 }
     else prog {
         istPointer = succ $ istPointer prog,
@@ -132,7 +132,7 @@ execDebug prog = prog {
     state = Debug }
 
 getOutput :: Program -> Char
-getOutput prog = chr . fromIntegral $ (memory prog) !! (memPointer prog)
+getOutput prog = chr . fromIntegral $ memory prog !! memPointer prog
 
 giveInput :: Program -> Char -> Program
 giveInput prog val = prog{
@@ -147,16 +147,16 @@ resume prog = prog { state = Run }
 
 checkEnd :: Program -> Program
 checkEnd prog = prog { state = if checkState then End else state prog } where
-    checkState = (istPointer prog) >= (length $ code prog)
+    checkState = istPointer prog >= length (code prog)
 
 getCommand :: Program -> Char
-getCommand prog = (code prog) !! (istPointer prog)
+getCommand prog = code prog !! istPointer prog
 
 printDebug :: Program -> String
 printDebug prog = 
-    "codice: "++(show $ istPointer prog)++"->"++[(getCommand prog)]++"\n"++
-    "memoria: "++(show $ memPointer prog)++"="++(show $ (memory prog)!!(memPointer prog))++"\n"++
-    "pila: "++(show $ stack prog)++"\n\n"
+    "codice: " ++ show (istPointer prog) ++ "->" ++ [getCommand prog] ++ "\n" ++
+    "memoria: " ++ show (memPointer prog) ++ "=" ++ show (memory prog !! memPointer prog) ++ "\n" ++
+    "pila: " ++ show (stack prog) ++ "\n\n"
 
 getFunction :: Char -> (Program -> Program)
 getFunction ist = case ist of
@@ -201,13 +201,13 @@ main = do
     if length args /= 2 then
         putStr "bfi.exe\n  -c {code}\n  -f {file}"
         else do
-            let mode = args !! 0
+            let mode = head args
             case mode of
                 "-c" -> do
                     let program = newProgram $ args !! 1
                     execProgram program
                 "-f" -> do
-                    code <- readFile $ args!! 1
+                    code <- readFile $ args !! 1
                     let program = newProgram code
                     execProgram program
                 _ -> do
