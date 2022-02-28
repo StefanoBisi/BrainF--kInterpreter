@@ -196,6 +196,7 @@ execProgram prog = case state prog of
             return ()
     End -> do return ()
 
+main :: IO ()
 main = do
     args <- getArgs
     if length args /= 2 then
