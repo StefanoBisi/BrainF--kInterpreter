@@ -1,4 +1,4 @@
-import Data.Char (ord, chr) -- Per la gestione I/O5
+import Data.Char (ord, chr)
 import Data.Word ( Word8 )
 import Control.Monad.State ( MonadState(state), State )
 import Utilities ( putInList, rollDown, rollUp )
@@ -41,24 +41,21 @@ loadProgram _code = Process {
 
 getCommand :: Process -> Char
 getCommand p
-    | _ptr < _len = code p !! _ptr
+    | _ptr < _len = _code !! _ptr
     | otherwise = '_'
     where _ptr = instructionPointer p
-          _len = length $ code p
+          _len = length _code
+          _code = code p
 
 getExecCommand :: Execution -> Char
-getExecCommand (_, p)
-    | _ptr < _len = code p !! _ptr
-    | otherwise = '_'
-    where _ptr = instructionPointer p
-          _len = length $ code p
+getExecCommand (_, p) = getCommand p
 
 nextCommand :: Process -> Process
 nextCommand p
-    | _ptr < _len = p { instructionPointer = succ (instructionPointer p) }
+    | _ptr < _max = p { instructionPointer = succ _ptr }
     | otherwise = p { pState = End }
     where _ptr = instructionPointer p
-          _len = length $ code p
+          _max = length (code p) - 1
 
 setProgramState :: ProgramState -> State Execution ()
 setProgramState s = state $ \(vm, p) -> ((), (vm, p { pState = s}))
@@ -71,9 +68,11 @@ alterMemory op = state $ \(vm, p) ->
         upd_vm = vm { memory = putInList _memory _ptr (op _value) } in
     ((), (upd_vm, nextCommand p))
 
+-- instruction +
 increment :: State Execution ()
 increment = alterMemory rollUp
 
+-- instruction -
 decrement :: State Execution ()
 decrement = alterMemory rollDown
 
@@ -81,12 +80,15 @@ moveMemory :: (Int -> Int) -> State Execution ()
 moveMemory op = state $ \(vm, p) ->
     ((), (vm, nextCommand p { memoryPointer = op (memoryPointer p)}))
 
+-- instruction >
 moveRight :: State Execution ()
 moveRight = moveMemory rollUp
 
+-- instruction <
 moveLeft :: State Execution ()
 moveLeft = moveMemory rollDown
 
+-- instruction ,
 insertValue :: Word8 -> State Execution ()
 insertValue value = state $ \(vm, p) -> 
     let _memory = memory vm
@@ -94,11 +96,13 @@ insertValue value = state $ \(vm, p) ->
         upd_vm = vm { memory = putInList _memory _ptr value } in
     ((), (upd_vm, nextCommand p))
 
+-- instruction .
 getValue :: State Execution Char
 getValue = state $ \(vm, p) ->
     let value = chr . fromIntegral $ memory vm !! memoryPointer p in
     (value, (vm, nextCommand p))
 
+-- comments
 proceed :: State Execution ()
 proceed = state $ \(vm, p) ->
     ((), (vm, nextCommand p))
