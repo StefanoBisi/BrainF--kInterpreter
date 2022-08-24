@@ -1,10 +1,17 @@
+module Execution (
+    Execution,
+    flushOutputBuffer,
+    appendInputBuffer,
+    execProgram
+) where
+
 import Data.Word ( Word8 )
 import Data.Char (chr)
 import Control.Monad.State ( MonadState(state), State )
 import Utilities ( putInList, rollDown, rollUp )
-import VirtualMachine ( VirtualMachine(memory) )
+import VirtualMachine ( VirtualMachine(..), IOMode(..) )
 import Process
-    ( Process(memoryPointer, pState), ProcessState(..), getCommand, nextCommand, jumpForward, jumpBackward )
+    ( Process(..), ProcessState(..), getCommand, nextCommand, jumpForward, jumpBackward )
 
 type Execution = (VirtualMachine, Process)
 
@@ -40,26 +47,50 @@ moveLeft :: State Execution ()
 moveLeft = moveMemory rollDown
 
 -- instruction , (input)
-requestInput :: State Execution ()
-requestInput = state $ \(vm, p) ->
-    ((), (vm, p { pState = WaitIn}))
+-- If the input buffer is empty goes in WaitIn state, otherwise pops the heade value of the buffer and puts it in memory
+readInputBuffer :: State Execution ()
+readInputBuffer = state $ \(vm, p) -> case length (inputBuffer p) of
+    0 -> ((), (vm, p { pState = WaitIn}))
+    _ -> let _memory = memory vm
+             _ptr = memoryPointer p
+             _value:_newInBuffer = inputBuffer p
+             upd_vm = vm { memory = putInList _memory _ptr _value }
+             upd_p = nextCommand (p { inputBuffer = _newInBuffer }) in
+             ((), (upd_vm, upd_p))
 
-insertValue :: Word8 -> State Execution ()
-insertValue value = state $ \(vm, p) ->
-    let _memory = memory vm
-        _ptr = memoryPointer p
-        upd_vm = vm { memory = putInList _memory _ptr value } in
-    ((), (upd_vm, nextCommand (p { pState = Run })))
+-- Appends a value to the input buffer, than if it is filled, goes in Run state
+appendInputBuffer :: Word8 -> State Execution ()
+appendInputBuffer value = state $ \(vm, p) ->
+    let _newInBuffer = inputBuffer p ++ [value]
+        _bufferLen = length _newInBuffer
+        _ioMode = ioMode vm
+        _newState = case _ioMode of
+            SingleChar -> Run
+            Line -> if value == 10 then Run else WaitIn -- 10 = \n
+            Buffer l -> if l >= _bufferLen then Run else WaitIn in
+                ((), (vm, nextCommand (p { pState = _newState, inputBuffer = _newInBuffer })))
 
 -- instruction . (output)
-requestOutput :: State Execution ()
-requestOutput = state $ \(vm, p) ->
-    ((), (vm, p { pState = WaitOut}))
+-- Appends a value to the output buffer, than if it is filled, goes in WaitOut state
+writeOutputBuffer :: State Execution ()
+writeOutputBuffer = state $ \(vm, p) -> let
+    _value = memory vm !! memoryPointer p
+    _newOutBuffer = outputBuffer p ++ [_value]
+    _bufferLen = length _newOutBuffer
+    _ioMode = ioMode vm
+    _flush = case _ioMode of
+        SingleChar -> _bufferLen > 0
+        Line -> _value == 10 -- 10 = \n
+        Buffer l -> l >= _bufferLen in
+            if _flush
+            then ((), (vm, p { pState = WaitOut, outputBuffer = _newOutBuffer}))
+            else ((), (vm, nextCommand (p { outputBuffer = _newOutBuffer})))
 
-getValue :: State Execution Char
-getValue = state $ \(vm, p) ->
-    let value = chr . fromIntegral $ memory vm !! memoryPointer p in
-    (value, (vm, nextCommand (p { pState = Run })))
+-- Clears and returns the output buffer, then goes in Run state
+flushOutputBuffer :: State Execution String
+flushOutputBuffer = state $ \(vm, p) ->
+    let str = map (chr . fromIntegral) (outputBuffer p) in
+    (str, (vm, nextCommand (p { pState = Run, outputBuffer = [] })))
 
 -- instruction [
 openBlock :: State Execution ()
@@ -86,8 +117,8 @@ getOperation cmd = case cmd of
     '-' -> decrement
     '>' -> moveRight
     '<' -> moveLeft
-    ',' -> requestInput
-    '.' -> requestOutput
+    ',' -> readInputBuffer
+    '.' -> writeOutputBuffer
     '[' -> openBlock
     ']' -> closeBlock
     _ -> proceed
@@ -101,15 +132,15 @@ getExecCommand = state $ \(vm, p) -> (getCommand p, (vm, p))
 execId :: State Execution ()
 execId = state $ \(vm, p) -> ((), (vm, p))
 
-execProgram :: State Execution ()
-execProgram = do
+runCycle :: State Execution ()
+runCycle = do
     state <- getExecState
     case state of
         Run -> do
             cmd <- getExecCommand
             getOperation cmd
-            execProgram
-        WaitIn -> undefined
-        WaitOut -> undefined
-        End -> execId
-        Debug -> undefined
+            runCycle
+        _ -> execId
+
+execProgram :: Execution -> IO()
+execProgram = undefined

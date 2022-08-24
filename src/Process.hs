@@ -9,17 +9,16 @@ module Process (
 ) where
 
 import Data.Word ( Word8 )
-import Control.Monad.State ( MonadState(state), State )
-import Utilities ( putInList, rollDown, rollUp )
 
-data ProcessState = Run | WaitIn | WaitOut | End | Debug deriving (Show, Eq)
+data ProcessState = Run | WaitIn | WaitOut | End deriving Eq
 
 data Process = Process {
     code :: String,
     instructionPointer :: Int,
     memoryPointer :: Int,
     pState :: ProcessState,
-    outputBuffer :: String
+    outputBuffer :: [Word8],
+    inputBuffer :: [Word8]
 }
 
 loadProgram :: String -> Process
@@ -28,7 +27,8 @@ loadProgram _code = Process {
     instructionPointer = 0,
     memoryPointer = 0,
     pState = Run,
-    outputBuffer = []
+    outputBuffer = [],
+    inputBuffer = []
 }
 
 getCommand :: Process -> Char

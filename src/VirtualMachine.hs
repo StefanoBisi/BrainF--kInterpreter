@@ -1,22 +1,22 @@
 module VirtualMachine (
-    OutputMode (..),
+    IOMode (..),
     VirtualMachine (..),
     installVM
 ) where
 
 import Data.Word ( Word8 )
 
-data OutputMode = SingleChar | Line | Buffer Int
+data IOMode = SingleChar | Line | Buffer Int
 
 data VirtualMachine = VirtualMachine {
     memorySize :: Int,
     memory :: [Word8],
-    outputMode :: OutputMode
+    ioMode :: IOMode
 }
 
-installVM :: Int -> OutputMode -> VirtualMachine
-installVM _memorySize _outputMode = VirtualMachine {
+installVM :: Int -> IOMode -> VirtualMachine
+installVM _memorySize _ioMode = VirtualMachine {
     memorySize = _memorySize,
     memory = replicate _memorySize 0,
-    outputMode = _outputMode
+    ioMode = _ioMode
 }
