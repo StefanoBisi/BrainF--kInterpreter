@@ -9,6 +9,7 @@ defaultIOMode = SingleChar
 defaultMemorySize = 30000
 
 main = do
+    -- putStrLn "Hello World!"
     args <- getArgs
     code <- readFile $ args !! 1
     let process = loadProgram code
