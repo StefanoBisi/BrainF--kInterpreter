@@ -1,3 +1,3 @@
 #! /usr/bin/bash
 mkdir -p build
-ghc --make -o build/BFInterpreter src/BFMain.hs
+ghc --make -i:src -o build/BFInterpreter src/main.hs

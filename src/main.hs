@@ -11,7 +11,7 @@ defaultMemorySize = 30000
 main = do
     -- putStrLn "Hello World!"
     args <- getArgs
-    code <- readFile $ args !! 1
+    code <- readFile $ head args
     let process = loadProgram code
     let virtualMachine = installVM defaultMemorySize defaultIOMode
     execProgram virtualMachine process
