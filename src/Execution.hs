@@ -1,13 +1,10 @@
 module Execution (
-    Execution,
-    flushOutputBuffer,
-    appendInputBuffer,
     execProgram
 ) where
 
 import Data.Word ( Word8 )
-import Data.Char (chr)
-import Control.Monad.State ( MonadState(state), State )
+import Data.Char (chr, ord)
+import Control.Monad.State ( MonadState(state), State, runState )
 import Utilities ( putInList, rollDown, rollUp )
 import VirtualMachine ( VirtualMachine(..), IOMode(..) )
 import Process
@@ -140,7 +137,26 @@ runCycle = do
             cmd <- getExecCommand
             getOperation cmd
             runCycle
-        _ -> execId
+        _ -> return ()
 
-execProgram :: Execution -> IO()
-execProgram = undefined
+ioCycle :: Execution -> IO()
+ioCycle execution = do
+    let state = pState $ snd execution
+    case state of
+        Run -> do
+            let (_, _newExecution) = runState runCycle execution
+            ioCycle _newExecution
+        WaitIn -> do
+            val <- getChar
+            let w8Val = fromIntegral . ord $ val
+            let (_, _newExecution) = runState (appendInputBuffer w8Val) execution
+            ioCycle _newExecution
+        WaitOut -> do
+            let (_, _newExecution) = runState flushOutputBuffer execution
+            let str = map (chr . fromIntegral) (outputBuffer $ snd _newExecution)
+            putStr str
+            ioCycle _newExecution
+        End -> return ()
+
+execProgram :: VirtualMachine -> Process -> IO()
+execProgram vm p = ioCycle (vm, p)
