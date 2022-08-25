@@ -65,7 +65,7 @@ appendInputBuffer value = state $ \(vm, p) ->
             SingleChar -> Run
             Line -> if value == 10 then Run else WaitIn -- 10 = \n
             Buffer l -> if l >= _bufferLen then Run else WaitIn in
-                ((), (vm, nextCommand (p { pState = _newState, inputBuffer = _newInBuffer })))
+                ((), (vm, p { pState = _newState, inputBuffer = _newInBuffer }))
 
 -- instruction . (output)
 -- Appends a value to the output buffer, than if it is filled, goes in WaitOut state
@@ -84,22 +84,21 @@ writeOutputBuffer = state $ \(vm, p) -> let
             else ((), (vm, nextCommand (p { outputBuffer = _newOutBuffer})))
 
 -- Clears and returns the output buffer, then goes in Run state
-flushOutputBuffer :: State Execution String
+flushOutputBuffer :: State Execution [Word8]
 flushOutputBuffer = state $ \(vm, p) ->
-    let str = map (chr . fromIntegral) (outputBuffer p) in
-    (str, (vm, nextCommand (p { pState = Run, outputBuffer = [] })))
+    (outputBuffer p, (vm, nextCommand (p { pState = Run, outputBuffer = [] })))
 
 -- instruction [
 openBlock :: State Execution ()
 openBlock = state $ \(vm, p) ->
-    if (memory vm !! memoryPointer p) == 0
+    if memory vm !! memoryPointer p == 0
         then ((), (vm, jumpForward p))
         else ((), (vm, nextCommand p))
 
 -- instruction ]
 closeBlock :: State Execution ()
 closeBlock = state $ \(vm, p) ->
-    if (memory vm !! memoryPointer p) == 0
+    if memory vm !! memoryPointer p == 0
         then ((), (vm, nextCommand p))
         else ((), (vm, jumpBackward p))
 
@@ -152,8 +151,8 @@ ioCycle execution = do
             let (_, _newExecution) = runState (appendInputBuffer w8Val) execution
             ioCycle _newExecution
         WaitOut -> do
-            let (_, _newExecution) = runState flushOutputBuffer execution
-            let str = map (chr . fromIntegral) (outputBuffer $ snd _newExecution)
+            let (buffer, _newExecution) = runState flushOutputBuffer execution
+            let str = map (chr . fromIntegral) buffer
             putStr str
             ioCycle _newExecution
         End -> return ()

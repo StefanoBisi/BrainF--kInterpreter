@@ -52,19 +52,26 @@ previousCommand p
     | otherwise = p { pState = End }
     where _ptr = instructionPointer p
 
-jumpToBracket :: (Process -> Process) -> Process -> Process
-jumpToBracket action p = nextStep p 1 where
-    nextStep p n =
-        let np = stepCount (getCommand p) n in
-        if pState p == End  || np == 0 then p
-        else nextStep (action p) np
-    stepCount c n
-        | c == '[' = n + 1
-        | c == ']' = n - 1
-        | otherwise = n
+findMatchingBracket :: Process -> Process
+findMatchingBracket p = case getCommand p of
+    '[' -> iteration (1, 0) nextCommand p
+    ']' -> iteration (0, 1) previousCommand p
+    _ -> p
+    where
+        iteration :: (Int, Int) -> (Process -> Process) -> Process -> Process
+        iteration count action p = let
+            newP = action p
+            currCmd = getCommand newP
+            newCount = stepCount currCmd count in
+                if pState p == End  || uncurry (==) newCount then p
+                else iteration newCount action newP
+        stepCount :: Char -> (Int, Int) -> (Int, Int)
+        stepCount char count
+            | char == '[' = (fst count + 1, snd count)
+            | char == ']' = (fst count, snd count + 1)
+            | otherwise = count
 
 jumpForward :: Process -> Process
-jumpForward = jumpToBracket nextCommand
-
+jumpForward = findMatchingBracket
 jumpBackward :: Process -> Process
-jumpBackward = jumpToBracket previousCommand
+jumpBackward = findMatchingBracket
