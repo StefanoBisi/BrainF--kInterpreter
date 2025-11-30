@@ -2,3 +2,6 @@
 *.hi
 build
 bf
+
+tmp
+dist-newstyle

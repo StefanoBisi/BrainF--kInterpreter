@@ -5,7 +5,7 @@ module Execution (
 import Data.Word ( Word8 )
 import Data.Char (chr, ord)
 import Control.Monad.State ( MonadState(state), State, runState )
-import Utilities ( putInList, rollDown, rollUp )
+import BFUtilities ( putInList, rollDown, rollUp )
 import VirtualMachine ( VirtualMachine(..), IOMode(..) )
 import Process
     ( Process(..), ProcessState(..), getCommand, nextCommand, jumpForward, jumpBackward )
