@@ -12,9 +12,6 @@ import Process
 
 type Execution = (VirtualMachine, Process)
 
-setProgramState :: ProcessState -> State Execution ()
-setProgramState s = state $ \(vm, p) -> ((), (vm, p { pState = s}))
-
 alterMemory :: (Word8 -> Word8) -> State Execution ()
 alterMemory op = state $ \(vm, p) ->
     let _memory = memory vm
@@ -46,8 +43,8 @@ moveLeft = moveMemory rollDown
 -- instruction , (input)
 -- If the input buffer is empty goes in WaitIn state, otherwise pops the heade value of the buffer and puts it in memory
 readInputBuffer :: State Execution ()
-readInputBuffer = state $ \(vm, p) -> case length (inputBuffer p) of
-    0 -> ((), (vm, p { pState = WaitIn}))
+readInputBuffer = state $ \(vm, p) -> case inputBuffer p of
+    [] -> ((), (vm, p { pState = WaitIn}))
     _ -> let _memory = memory vm
              _ptr = memoryPointer p
              _value:_newInBuffer = inputBuffer p
@@ -125,13 +122,10 @@ getExecState = state $ \(vm, p) -> (pState p, (vm, p))
 getExecCommand :: State Execution Char
 getExecCommand = state $ \(vm, p) -> (getCommand p, (vm, p))
 
-execId :: State Execution ()
-execId = state $ \(vm, p) -> ((), (vm, p))
-
 runCycle :: State Execution ()
 runCycle = do
-    state <- getExecState
-    case state of
+    appState <- getExecState
+    case appState of
         Run -> do
             cmd <- getExecCommand
             getOperation cmd
@@ -140,8 +134,8 @@ runCycle = do
 
 ioCycle :: Execution -> IO()
 ioCycle execution = do
-    let state = pState $ snd execution
-    case state of
+    let appState = pState $ snd execution
+    case appState of
         Run -> do
             let (_, _newExecution) = runState runCycle execution
             ioCycle _newExecution

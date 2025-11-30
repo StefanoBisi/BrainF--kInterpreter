@@ -59,11 +59,11 @@ findMatchingBracket p = case getCommand p of
     _ -> p
     where
         iteration :: (Int, Int) -> (Process -> Process) -> Process -> Process
-        iteration count action p = let
-            newP = action p
+        iteration count action np = let
+            newP = action np
             currCmd = getCommand newP
             newCount = stepCount currCmd count in
-                if pState p == End  || uncurry (==) newCount then p
+                if pState np == End  || uncurry (==) newCount then np
                 else iteration newCount action newP
         stepCount :: Char -> (Int, Int) -> (Int, Int)
         stepCount char count

@@ -3,11 +3,14 @@ import Process(loadProgram)
 import Execution(execProgram)
 
 import System.Environment(getArgs)
-import System.IO (readFile)
 
+defaultIOMode :: IOMode
 defaultIOMode = SingleChar
+
+defaultMemorySize :: Int
 defaultMemorySize = 30000
 
+main :: IO()
 main = do
     args <- getArgs
     code <- readFile $ head args
